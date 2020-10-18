@@ -1,16 +1,13 @@
 from selenium.webdriver.common.by import By
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver import ActionChains
 import pickle
 import time	
 
 class WhatsBot:
-	def __init__(self):
-		options = webdriver.ChromeOptions()
-		options.add_argument('lang=pt-br')
-		options.add_argument("--user-data-dir=chrome-data")		
-		self.driver = webdriver.Chrome(
-			executable_path=r'./chromedriver', chrome_options=options)
+	def __init__(self, navegador):
+		self.__SetDriver(navegador)
 		self.driver.get('https://web.whatsapp.com')
 		time.sleep(15)
 		pickle.dump( self.driver.get_cookies() , open("cookies.pkl","wb"))
@@ -18,6 +15,27 @@ class WhatsBot:
 		for cookie in cookies:
 			self.driver.add_cookie(cookie)			
 		self.ativo = True
+
+	def __SetDriver(self, navegador):
+		if (navegador == 'firefox'):
+			options = webdriver.FirefoxOptions()
+			options.add_argument('lang=pt-br')
+			options.add_argument("--user-data-dir=chrome-data")				
+			self.driver = webdriver.Firefox(
+				executable_path=r'.firefoxdriver', firefox_options=options)
+		else:
+			options = webdriver.ChromeOptions()
+			options.add_argument('lang=pt-br')
+			options.add_argument("--user-data-dir=chrome-data")		
+			self.driver = webdriver.Chrome(
+				executable_path=r'./chromedriver.exe', chrome_options=options)
+
+	def __EnviarMensagem(self, mensagem):
+		chat_box = self.__ChatBox()
+		for line in mensagem.split('\n'):
+			ActionChains(self.driver).send_keys(line).perform()
+			ActionChains(self.driver).key_down(Keys.SHIFT).key_down(Keys.ENTER).key_up(Keys.SHIFT).key_up(Keys.ENTER).perform()
+		chat_box.send_keys("\n")				
 
 	def __ChatBox(self):
 		chat_box = self.driver.find_element(By.XPATH, '//*[@id="main"]/footer/div[1]/div[2]/div/div[2]')		
@@ -98,19 +116,17 @@ class WhatsBot:
 		for I in self.numero:
 			print("Enviando mensagem para {}".format(I))
 			self.driver.get("https://web.whatsapp.com/send?phone={}&source=&data=#".format(I))
-			time.sleep(5)
+			time.sleep(3)
 			try:
 				self.driver.switch_to_alert().accept()
 			except Exception as e:
 				print(e)
 				pass	
 			chat_box = self.__ChatBox()
-			time.sleep(1)
+			time.sleep(3)
 			chat_box.click()
 			for m in self.mensagem:
-				chat_box.send_keys(m)      
-				chat_box.send_keys("\n")
-				time.sleep(1)								 	
+				self.__EnviarMensagem(m)								 	
 
 	def EnviarMensagensGrupoContato(self, grupo_contato, mensagem):
 		self.grupo_contato = grupo_contato
@@ -119,10 +135,7 @@ class WhatsBot:
 			print("Enviando mensagem para {}".format(I))
 			if self.__BuscarChat(grupo_contato):
 				for m in self.mensagem:
-					chat_box = self.__ChatBox()
-					chat_box.send_keys(m)      
-					chat_box.send_keys("\n")
-					time.sleep(1)				
+					self.__EnviarMensagem(m)				
 
 	def AguardandoResposta(self, grupo_contato):
 		return self.__TextoUltimaMensagem(grupo_contato) == self.TextoUltimaMensagemRecebida(grupo_contato)
@@ -159,7 +172,5 @@ class WhatsBot:
 			self.ResponderContatoAtivo(mensagem)
 
 	def ResponderContatoAtivo(self, mensagem):
-		chat_box = self.__ChatBox()		
-		chat_box.send_keys(mensagem)      
-		chat_box.send_keys("\n")
-		time.sleep(1) 			
+		for m in mensagem:
+			self.__EnviarMensagem(m) 			
